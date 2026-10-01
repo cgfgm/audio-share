@@ -8,4 +8,5 @@
 .cxx
 local.properties
 keystore.properties
+/keystore
 .kotlin

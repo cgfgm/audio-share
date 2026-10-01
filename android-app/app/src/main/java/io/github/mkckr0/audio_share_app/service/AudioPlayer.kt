@@ -43,6 +43,7 @@ import io.github.mkckr0.audio_share_app.R
 import io.github.mkckr0.audio_share_app.model.AudioConfigKeys
 import io.github.mkckr0.audio_share_app.model.NetworkConfigKeys
 import io.github.mkckr0.audio_share_app.model.audioConfigDataStore
+import io.github.mkckr0.audio_share_app.model.getConnectionSettings
 import io.github.mkckr0.audio_share_app.model.getFloat
 import io.github.mkckr0.audio_share_app.model.getInteger
 import io.github.mkckr0.audio_share_app.model.getResourceUri
@@ -50,12 +51,14 @@ import io.github.mkckr0.audio_share_app.model.networkConfigDataStore
 import io.github.mkckr0.audio_share_app.pb.Client
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.guava.future
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.plus
 import java.nio.ByteBuffer
@@ -92,6 +95,8 @@ class AudioPlayer(val context: Context) : SimpleBasePlayer(Looper.getMainLooper(
 
     private val scope: CoroutineScope = MainScope()
     private val retryScope: CoroutineScope = MainScope()
+    private var retryJob: Job? = null
+    private var retryCount = 0
 
     companion object {
         var message by mutableStateOf("")
@@ -102,11 +107,17 @@ class AudioPlayer(val context: Context) : SimpleBasePlayer(Looper.getMainLooper(
             Log.d(tag, "handleSetPlayWhenReady playWhenReady=$playWhenReady")
             _state = state.buildUpon().setPlayerError(null).build()
             if (playWhenReady) {
+                retryJob?.cancel()
+                retryScope.coroutineContext.cancelChildren()
+                retryJob = null
+                retryCount = 0
+
                 val networkConfig = context.networkConfigDataStore.data.first()
                 val host = networkConfig[stringPreferencesKey(NetworkConfigKeys.HOST)]
                     ?: context.getString(R.string.default_host)
                 val port = networkConfig[intPreferencesKey(NetworkConfigKeys.PORT)]
                     ?: context.getInteger(R.integer.default_port)
+                val connectionSettings = context.getConnectionSettings()
 
                 val mediaItem = MediaItem.fromUri("tcp://$host:$port").buildUpon()
                     .setMediaMetadata(
@@ -134,6 +145,7 @@ class AudioPlayer(val context: Context) : SimpleBasePlayer(Looper.getMainLooper(
                 netClient.start(
                     host = host,
                     port = port,
+                    connectionTimeoutSeconds = connectionSettings.timeoutSeconds,
                     callback = NetClientCallBack()
                 )
             } else {
@@ -141,7 +153,10 @@ class AudioPlayer(val context: Context) : SimpleBasePlayer(Looper.getMainLooper(
                     .setPlayWhenReady(false, PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST)
                     .build()
                 netClient.stop()
+                retryJob?.cancel()
                 retryScope.coroutineContext.cancelChildren()
+                retryJob = null
+                retryCount = 0
                 message = context.getString(R.string.label_paused)
             }
         }
@@ -154,7 +169,10 @@ class AudioPlayer(val context: Context) : SimpleBasePlayer(Looper.getMainLooper(
             .setPlayWhenReady(false, PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST)
             .build()
         netClient.stop()
+        retryJob?.cancel()
         retryScope.coroutineContext.cancelChildren()
+        retryJob = null
+        retryCount = 0
         message = context.getString(R.string.label_stopped)
         return immediateVoidFuture()
     }
@@ -163,6 +181,7 @@ class AudioPlayer(val context: Context) : SimpleBasePlayer(Looper.getMainLooper(
         Log.d(tag, "handleRelease")
         scope.cancel()
         netClient.stop()
+        retryJob?.cancel()
         retryScope.cancel()
         _loudnessEnhancer?.run {
             release()
@@ -277,6 +296,7 @@ class AudioPlayer(val context: Context) : SimpleBasePlayer(Looper.getMainLooper(
         }
 
         override suspend fun onPlaybackStarted() {
+            retryCount = 0
             _state = state.buildUpon()
                 .setPlaybackState(STATE_READY)
                 .build()
@@ -292,16 +312,41 @@ class AudioPlayer(val context: Context) : SimpleBasePlayer(Looper.getMainLooper(
 
         override suspend fun onError(message: String?, cause: Throwable?) {
             // switch to retryScope to prevent NetClient cancel callback scope
-            retryScope.launch {
+            if (retryJob?.isActive == true) {
+                return
+            }
+
+            retryJob = retryScope.launch {
 
                 netClient.stop()
 
-                val reason = message ?: cause?.stackTraceToString()
-                var wait = 3
+                val reason = message ?: cause?.message ?: cause?.stackTraceToString()
+                    ?: context.getString(R.string.label_connection_failed)
+                val connectionSettings = context.getConnectionSettings()
+
+                if (retryCount >= connectionSettings.maxRetries) {
+                    val stoppedMessage = context.getString(R.string.label_retry_stopped)
+                        .format(connectionSettings.maxRetries)
+                    Log.w(tag, "$reason, $stoppedMessage")
+                    log("$reason, $stoppedMessage")
+                    _state = state.buildUpon()
+                        .setPlaybackState(Player.STATE_IDLE)
+                        .setPlayWhenReady(false, PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST)
+                        .build()
+                    invalidateState()
+                    return@launch
+                }
+
+                retryCount += 1
+                var wait = connectionSettings.retryIntervalSeconds
                 while (wait > 0) {
                     log("$reason, ${context.getString(R.string.label_retry).format(wait)}")
                     delay(1.seconds)
                     --wait
+                }
+
+                if (!isActive) {
+                    return@launch
                 }
 
                 _state = state.buildUpon()
@@ -315,9 +360,11 @@ class AudioPlayer(val context: Context) : SimpleBasePlayer(Looper.getMainLooper(
                     ?: context.getString(R.string.default_host)
                 val port = networkConfig[intPreferencesKey(NetworkConfigKeys.PORT)]
                     ?: context.getInteger(R.integer.default_port)
+                val latestConnectionSettings = context.getConnectionSettings()
                 netClient.start(
                     host = host,
                     port = port,
+                    connectionTimeoutSeconds = latestConnectionSettings.timeoutSeconds,
                     callback = NetClientCallBack()
                 )
             }

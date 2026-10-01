@@ -16,6 +16,9 @@
     <bool name="default_dynamic_color_from_wallpaper" translatable="false">false</bool>
     <string name="default_dynamic_color_from_seed_color" translatable="false">#63A002</string>
     <bool name="default_auto_check_for_update" translatable="false">false</bool>
+    <integer name="default_connection_timeout_seconds" translatable="false">3</integer>
+    <integer name="default_retry_interval_seconds" translatable="false">3</integer>
+    <integer name="default_max_retries" translatable="false">3</integer>
 
     <!-- URLs -->
     <string name="project_url" translatable="false">https://github.com/mkckr0/audio-share</string>

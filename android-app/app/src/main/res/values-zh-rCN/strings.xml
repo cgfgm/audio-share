@@ -17,6 +17,14 @@
     <string name="label_auto_start">自动开始</string>
     <string name="label_auto_start_when_system_boots">当系统启动时自动播放</string>
     <string name="label_auto_start_when_app_starts">当应用启动时自动播放</string>
+    <string name="label_connection">连接</string>
+    <string name="label_connection_timeout">连接超时时间</string>
+    <string name="label_retry_interval">连接失败后的重试间隔</string>
+    <string name="label_max_retries">最大重试次数（不包括首次连接）</string>
+    <string name="label_seconds">%d 秒</string>
+    <string name="label_retry_count">%d 次重试</string>
+    <string name="label_no_retry">不重试</string>
+    <string name="label_value_is_invalid">数值无效</string>
     <string name="label_ignored">已忽略</string>
     <string name="label_not_ignored">未忽略</string>
     <string name="label_battery_optimization">电池优化</string>
@@ -49,6 +57,8 @@
     <string name="label_stopped">已关闭</string>
     <string name="label_paused">已暂停</string>
     <string name="label_retry">会在%d秒内重试</string>
+    <string name="label_connection_failed">连接失败</string>
+    <string name="label_retry_stopped">已达到重试上限（%d 次），播放已停止</string>
     <string name="label_timeout">连接超时</string>
     <string name="label_unresolved_address">无法解析的地址</string>
     <string name="label_connecting">正在连接</string>

@@ -36,6 +36,8 @@ import androidx.compose.material.icons.filled.NewReleases
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.PowerSettingsNew
+import androidx.compose.material.icons.filled.Replay
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.Update
@@ -59,9 +61,12 @@ import androidx.work.WorkManager
 import io.github.mkckr0.audio_share_app.BuildConfig
 import io.github.mkckr0.audio_share_app.R
 import io.github.mkckr0.audio_share_app.model.AppSettingsKeys
+import io.github.mkckr0.audio_share_app.model.ConnectionSettingsLimits
 import io.github.mkckr0.audio_share_app.model.WorkName
 import io.github.mkckr0.audio_share_app.model.getBoolean
+import io.github.mkckr0.audio_share_app.model.getInteger
 import io.github.mkckr0.audio_share_app.ui.base.EditTextPreference
+import io.github.mkckr0.audio_share_app.ui.base.IntPreference
 import io.github.mkckr0.audio_share_app.ui.base.Preference
 import io.github.mkckr0.audio_share_app.ui.base.PreferenceCategory
 import io.github.mkckr0.audio_share_app.ui.base.PreferenceScreen
@@ -95,6 +100,39 @@ fun SettingsScreen() {
                 key = AppSettingsKeys.START_PLAYBACK_WHEN_APP_START,
                 title = context.getString(R.string.label_auto_start_when_app_starts),
                 defaultValue = context.getBoolean(R.bool.default_start_playback_when_app_start)
+            )
+        }
+
+        PreferenceCategory(context.getString(R.string.label_connection)) {
+            IntPreference(
+                icon = Icons.Default.Timer,
+                key = AppSettingsKeys.CONNECTION_TIMEOUT_SECONDS,
+                title = context.getString(R.string.label_connection_timeout),
+                defaultValue = context.getInteger(R.integer.default_connection_timeout_seconds),
+                valueRange = ConnectionSettingsLimits.MIN_TIMEOUT_SECONDS..ConnectionSettingsLimits.MAX_TIMEOUT_SECONDS,
+                valueFormatter = { context.getString(R.string.label_seconds).format(it) },
+            )
+            IntPreference(
+                icon = Icons.Default.Update,
+                key = AppSettingsKeys.RETRY_INTERVAL_SECONDS,
+                title = context.getString(R.string.label_retry_interval),
+                defaultValue = context.getInteger(R.integer.default_retry_interval_seconds),
+                valueRange = ConnectionSettingsLimits.MIN_RETRY_INTERVAL_SECONDS..ConnectionSettingsLimits.MAX_RETRY_INTERVAL_SECONDS,
+                valueFormatter = { context.getString(R.string.label_seconds).format(it) },
+            )
+            IntPreference(
+                icon = Icons.Default.Replay,
+                key = AppSettingsKeys.MAX_RETRIES,
+                title = context.getString(R.string.label_max_retries),
+                defaultValue = context.getInteger(R.integer.default_max_retries),
+                valueRange = ConnectionSettingsLimits.MIN_RETRIES..ConnectionSettingsLimits.MAX_RETRIES,
+                valueFormatter = {
+                    if (it == 0) {
+                        context.getString(R.string.label_no_retry)
+                    } else {
+                        context.getString(R.string.label_retry_count).format(it)
+                    }
+                },
             )
         }
 

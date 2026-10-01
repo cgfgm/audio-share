@@ -96,7 +96,12 @@ class NetClient(val context: Context) {
         }
     }
 
-    fun start(host: String, port: Int, callback: Callback) {
+    fun start(
+        host: String,
+        port: Int,
+        connectionTimeoutSeconds: Int,
+        callback: Callback,
+    ) {
         Log.d(tag, "$host:$port")
         _scope = defaultScope()
         scope.launch {
@@ -111,8 +116,9 @@ class NetClient(val context: Context) {
             }
             _selectorManager = SelectorManager(Dispatchers.IO)
 
+            val connectionTimeout = connectionTimeoutSeconds.coerceAtLeast(1).seconds
             try {
-                _tcpSocket = withTimeout(3.seconds) {
+                _tcpSocket = withTimeout(connectionTimeout) {
                     aSocket(selectorManager).tcp().connect(host, port)
                 }
             } catch (e: TimeoutCancellationException) {
@@ -130,14 +136,22 @@ class NetClient(val context: Context) {
 
             // get format
             tcpWriteChannel.writeCMD(CMD.CMD_GET_FORMAT)
-            var cmd = tcpReadChannel.readCMD()
+            var cmd = withTimeout(connectionTimeout) {
+                tcpReadChannel.readCMD()
+            }
             if (cmd != CMD.CMD_GET_FORMAT) {
                 return@launch
             }
-            val audioFormat = tcpReadChannel.readAudioFormat() ?: return@launch
+            val audioFormat = withTimeout(connectionTimeout) {
+                tcpReadChannel.readAudioFormat()
+            } ?: return@launch
             _callback?.launch {
                 onReceiveAudioFormat(audioFormat)
-            }?.join()   // wait AudioTrack created
+            }?.let {
+                withTimeout(connectionTimeout) {
+                    it.join()
+                }
+            }   // wait AudioTrack created
 
             _callback?.launch {
                 log("get format success")
@@ -145,11 +159,15 @@ class NetClient(val context: Context) {
 
             // start play
             tcpWriteChannel.writeCMD(CMD.CMD_START_PLAY)
-            cmd = tcpReadChannel.readCMD()
+            cmd = withTimeout(connectionTimeout) {
+                tcpReadChannel.readCMD()
+            }
             if (cmd != CMD.CMD_START_PLAY) {
                 return@launch
             }
-            val id = tcpReadChannel.readIntLE()
+            val id = withTimeout(connectionTimeout) {
+                tcpReadChannel.readIntLE()
+            }
             if (id <= 0) {
                 return@launch
             }

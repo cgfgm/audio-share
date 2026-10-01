@@ -17,6 +17,14 @@
     <string name="label_auto_start">Auto Start</string>
     <string name="label_auto_start_when_system_boots">Auto start playback when system boots</string>
     <string name="label_auto_start_when_app_starts">Auto start playback when app starts</string>
+    <string name="label_connection">Connection</string>
+    <string name="label_connection_timeout">Connection timeout</string>
+    <string name="label_retry_interval">Retry interval after connection failure</string>
+    <string name="label_max_retries">Maximum retries (excluding the first connection)</string>
+    <string name="label_seconds">%d seconds</string>
+    <string name="label_retry_count">%d retries</string>
+    <string name="label_no_retry">No retries</string>
+    <string name="label_value_is_invalid">Value is invalid</string>
     <string name="label_ignored">Ignored</string>
     <string name="label_not_ignored">Not ignored</string>
     <string name="label_battery_optimization">Battery optimization</string>
@@ -49,6 +57,8 @@
     <string name="label_stopped">Stopped</string>
     <string name="label_paused">Paused</string>
     <string name="label_retry">will retry in %d seconds</string>
+    <string name="label_connection_failed">connection failed</string>
+    <string name="label_retry_stopped">retry limit reached (%d), playback stopped</string>
     <string name="label_timeout">Connect timeout</string>
     <string name="label_unresolved_address">Unresolved address</string>
     <string name="label_connecting">Connecting</string>

@@ -33,4 +33,7 @@ object AppSettingsKeys {
     const val DYNAMIC_COLOR_FROM_WALLPAPER = "dynamic_color_from_wallpaper"
     const val DYNAMIC_COLOR_FROM_SEED_COLOR = "dynamic_color_from_seed_color"
     const val AUTO_CHECK_FOR_UPDATE = "auto_check_for_update"
+    const val CONNECTION_TIMEOUT_SECONDS = "connection_timeout_seconds"
+    const val RETRY_INTERVAL_SECONDS = "retry_interval_seconds"
+    const val MAX_RETRIES = "max_retries"
 }
